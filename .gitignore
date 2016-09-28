@@ -1,11 +1,9 @@
-config.json
+.json
 *.log
 *.bak
 .idea/ge-cancellation-checker.iml
 .idea/misc.xml
 .idea/modules.xml
 .idea/workspace.xml
-config.json.bak
-ge-checker-cron.py.bak
 log.txt
 Would skip repository phantomjs/

@@ -13,7 +13,7 @@ import ctypes  # An included library with Python install.
 from datetime import datetime
 from os import path
 from subprocess import check_output
- 
+
 
 EMAIL_TEMPLATE1 = """
 <p>Good news! There's a new Global Entry appointment available on <b>%s</b> (your current appointment is on %s).</p>
