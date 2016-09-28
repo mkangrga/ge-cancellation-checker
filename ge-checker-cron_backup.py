@@ -3,27 +3,20 @@
 # Note: for setting up email with sendmail, see: http://linuxconfig.org/configuring-gmail-as-sendmail-email-relay
 
 import argparse
-import subprocess
+import commands
 import json
 import logging
 import smtplib
 import sys
-import ctypes  # An included library with Python install.
 
 from datetime import datetime
 from os import path
 from subprocess import check_output
- 
 
-EMAIL_TEMPLATE1 = """
+
+EMAIL_TEMPLATE = """
 <p>Good news! There's a new Global Entry appointment available on <b>%s</b> (your current appointment is on %s).</p>
 <p>If this sounds good, please sign in to https://goes-app.cbp.dhs.gov/main/goes to reschedule.</p>
-<p>If you reschedule, please remember to update CURRENT_INTERVIEW_DATE in your config.json file.</p>
-"""
-
-EMAIL_TEMPLATE2 = """
-<p>No sooner Global Entry appointments available. The soonest is on <b>%s</b> (your current appointment is on %s).</p>
-<p>You can sign in to https://goes-app.cbp.dhs.gov/main/goes to reschedule.</p>
 <p>If you reschedule, please remember to update CURRENT_INTERVIEW_DATE in your config.json file.</p>
 """
 
@@ -32,10 +25,9 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
     sender = settings.get('email_from')
     recipient = settings.get('email_to', sender)  # If recipient isn't provided, send to self.
     password = settings.get('gmail_password')
-    last_appt = settings.get('last_available_interview_date_str')
 
     if not password and use_gmail:
-        print('Trying to send from gmail, but password was not provided.')
+        print 'Trying to send from gmail, but password was not provided.'
         return
 
     try:
@@ -46,37 +38,23 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
         else:
             server = smtplib.SMTP('localhost', 25)
 
-        if avail_apt < current_apt:
-            subject = "Alert: New Global Entry Appointment Available on " + avail_apt.strftime('%m/%d/%y')
-            message = EMAIL_TEMPLATE1 % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
-        else:
-            subject = "No New Global Entry Appointment Available. Soonest available on " + avail_apt.strftime('%m/%d/%y')
-            message = EMAIL_TEMPLATE2 % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
-
+        subject = "Alert: New Global Entry Appointment Available"
         headers = "\r\n".join(["from: %s" % sender,
                                "subject: %s" % subject,
                                "to: %s" % recipient,
                                "mime-version: 1.0",
                                "content-type: text/html"])
-
-        # message = EMAIL_TEMPLATE % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
+        message = EMAIL_TEMPLATE % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
         content = headers + "\r\n\r\n" + message
 
-        if avail_apt < current_apt:
-            server.sendmail(sender, recipient[0], content)
-            server.sendmail(sender, recipient[1:2], "New appt on " + avail_apt.strftime('%m/%d/%y at %I:%M%p') + "! Quick!")
-        # elif avail_apt != last_appt:
-            # server.sendmail(sender, recipient[0], content)
-            # with open('config.json', 'w') as outfile:
-            #     json.dump({"last_available_interview_date_str": avail_apt.strftime('%m/%d/%y')}, outfile)
-
+        server.sendmail(sender, recipient, content)
         server.quit()
     except Exception:
-        logging.exception('Failed to send success e-mail.')
+        logging.exception('Failed to send succcess e-mail.')
 
 
 def notify_osx(msg):
-    subprocess.getstatusoutput("osascript -e 'display notification \"%s\" with title \"Global Entry Notifier\"'" % msg)
+    commands.getstatusoutput("osascript -e 'display notification \"%s\" with title \"Global Entry Notifier\"'" % msg)
 
 
 def main(settings):
@@ -84,14 +62,12 @@ def main(settings):
         # Run the phantom JS script - output will be formatted like 'July 20, 2015'
         # script_output = check_output(['phantomjs', '%s/ge-cancellation-checker.phantom.js' % pwd]).strip()
         script_output = check_output(['phantomjs', '--ssl-protocol=any', '%s/ge-cancellation-checker.phantom.js' % pwd]).strip()
-        script_output = script_output.decode('utf-8')
 
         if script_output == 'None':
             logging.info('No appointments available.')
             return
 
-        new_apt = datetime.strptime(script_output, '%B %d, %Y %I:%M %p')
-
+        new_apt = datetime.strptime(script_output, '%B %d, %Y')
 
     except ValueError:
         logging.critical("Couldn't convert output: {} from phantomJS script into a valid date. ".format(script_output))
@@ -100,19 +76,13 @@ def main(settings):
         logging.critical("Something went wrong when trying to run ge-cancellation-checker.phantom.js. Is phantomjs is installed?")
         return
 
-    current_apt = datetime.strptime(settings['current_interview_date_str'], '%m/%d/%y %I:%M %p')
-
+    current_apt = datetime.strptime(settings['current_interview_date_str'], '%B %d, %Y')
     if new_apt > current_apt:
         logging.info('No new appointments. Next available on %s (current is on %s)' % (new_apt, current_apt))
-        if not settings.get('no_email'):
-            notify_send_email(settings, current_apt, new_apt, use_gmail=settings.get('use_gmail'))
-            # ctypes.windll.user32.MessageBoxW(0, "No new appointments. Next available on " + new_apt.strftime("%m/%d/%y"),
-            #                                  "No New Appointment Available", 'MB_SYSTEMMODAL')
     else:
-        msg = 'Found new appointment on %s (current is on %s).' % (new_apt, current_apt)
+        msg = 'Found new appointment on %s (current is on %s)!' % (new_apt, current_apt)
         logging.info(msg + (' Sending email.' if not settings.get('no_email') else ' Not sending email.'))
-        # ctypes.windll.user32.MessageBoxW(0, "Sooner Appointment Available on " + new_apt.strftime("%m/%d/%y"),
-        #                                  "New Appointment Available!", 'MB_OK' | 'MB_SYSTEMMODAL')
+
         if settings.get('notify_osx'):
             notify_osx(msg)
         if not settings.get('no_email'):
@@ -164,7 +134,7 @@ if __name__ == '__main__':
             settings = json.load(json_file)
 
             # merge args into settings IF they're True
-            for key, val in arguments.items():
+            for key, val in arguments.iteritems():
                 if not arguments.get(key): continue
                 settings[key] = val
 

@@ -172,8 +172,9 @@ var steps = [
             // We made it! Now we have to scrape the page for the earliest available date
             var date = document.querySelector('.date table tr:first-child td:first-child').innerHTML;
             var month_year = document.querySelector('.date table tr:last-child td:last-child div').innerHTML;
+            var time = document.querySelector('.foreground table .entry .title').innerHTML;
 
-            var full_date = month_year.replace(',', ' ' + date + ',');
+            var full_date = month_year.replace(',', ' ' + date + ',') + ' ' + time;
             // console.log('');
             window.callPhantom('report-interview-time', full_date)
             // console.log('The next available appointment is on ' + full_date + '.');
