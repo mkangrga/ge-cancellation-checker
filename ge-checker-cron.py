@@ -48,10 +48,10 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
 
         if avail_apt < current_apt:
             subject = "Alert: New Global Entry Appointment Available on " + avail_apt.strftime('%m/%d/%y')
-            message = EMAIL_TEMPLATE1 % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
+            message = EMAIL_TEMPLATE1 % (avail_apt.strftime('%B %d, %Y at %I:%M%p'), current_apt.strftime('%B %d, %Y at %I:%M%p'))
         else:
             subject = "No New Global Entry Appointment Available. Soonest available on " + avail_apt.strftime('%m/%d/%y')
-            message = EMAIL_TEMPLATE2 % (avail_apt.strftime('%B %d, %Y'), current_apt.strftime('%B %d, %Y'))
+            message = EMAIL_TEMPLATE2 % (avail_apt.strftime('%B %d, %Y at %I:%M%p'), current_apt.strftime('%B %d, %Y at %I:%M%p'))
 
         headers = "\r\n".join(["from: %s" % sender,
                                "subject: %s" % subject,
@@ -64,7 +64,12 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
 
         if avail_apt < current_apt:
             server.sendmail(sender, recipient[0], content)
-            server.sendmail(sender, recipient[1:2], "New appt on " + avail_apt.strftime('%m/%d/%y at %I:%M%p') + "! Quick!")
+            server.sendmail(sender, recipient[1:], "\r\nNew appt on " + avail_apt.strftime('%m/%d/%y at %I:%M%p') + "! Quick!")
+        # else:
+        #     server.sendmail(sender, recipient[0], content)
+        #     server.sendmail(sender, recipient[1:], "\r\nNo sooner appointment. Saddies :(  Soonest appt is on " +
+        #                     avail_apt.strftime('%m/%d/%y at %I:%M%p') + ".")
+
         # elif avail_apt != last_appt:
             # server.sendmail(sender, recipient[0], content)
             # with open('config.json', 'w') as outfile:
