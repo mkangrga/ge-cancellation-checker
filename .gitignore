@@ -1,6 +1,7 @@
-.json
+*.json
 *.log
 *.bak
+.gitignore
 .idea/ge-cancellation-checker.iml
 .idea/misc.xml
 .idea/modules.xml
