@@ -6,5 +6,6 @@
 .idea/misc.xml
 .idea/modules.xml
 .idea/workspace.xml
+client_secrets.json
 log.txt
 Would skip repository phantomjs/

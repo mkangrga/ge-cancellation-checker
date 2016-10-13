@@ -76,7 +76,7 @@ def main(settings):
         logging.critical("Something went wrong when trying to run ge-cancellation-checker.phantom.js. Is phantomjs is installed?")
         return
 
-    current_apt = datetime.strptime(settings['current_interview_date_str'], '%B %d, %Y')
+    current_apt = datetime.strptime(settings['interview_date_cutoff_str'], '%B %d, %Y')
     if new_apt > current_apt:
         logging.info('No new appointments. Next available on %s (current is on %s)' % (new_apt, current_apt))
     else:
@@ -91,7 +91,7 @@ def main(settings):
 
 def _check_settings(config):
     required_settings = (
-        'current_interview_date_str',
+        'interview_date_cutoff_str',
         'init_url',
         'enrollment_location_id',
         'username',

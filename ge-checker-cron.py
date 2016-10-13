@@ -2,21 +2,42 @@
 
 # Note: for setting up email with sendmail, see: http://linuxconfig.org/configuring-gmail-as-sendmail-email-relay
 
+from __future__ import print_function
 import argparse
 import subprocess
 import json
 import logging
 import smtplib
 import sys
+import os
+import httplib2
+from apiclient import discovery
+import oauth2client
+from oauth2client import client
+from oauth2client import tools
 import ctypes  # An included library with Python install.
+import go_to_goes
 
 from datetime import datetime
 from os import path
 from subprocess import check_output
 
 
+
+try:
+    import argparse
+    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
+except ImportError:
+    flags = None
+
+# If modifying these scopes, delete your previously saved credentials
+# at ~/.credentials/drive-python-quickstart.json
+SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly'
+CLIENT_SECRET_FILE = 'client_secrets.json'
+APPLICATION_NAME = 'Drive API Python Quickstart'
+
 EMAIL_TEMPLATE1 = """
-<p>Good news! There's a new Global Entry appointment available on <b>%s</b> (your current appointment is on %s).</p>
+<p>Good news! There's a Global Entry appointment available on <b>%s</b> (looking for appointments prior to %s).</p>
 <p>If this sounds good, please sign in to https://goes-app.cbp.dhs.gov/main/goes to reschedule.</p>
 <p>If you reschedule, please remember to update CURRENT_INTERVIEW_DATE in your config.json file.</p>
 """
@@ -63,8 +84,9 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
         content = headers + "\r\n\r\n" + message
 
         if avail_apt < current_apt:
-            server.sendmail(sender, recipient[0], content)
-            server.sendmail(sender, recipient[1:], "\r\nNew appt on " + avail_apt.strftime('%m/%d/%y at %I:%M%p') + "! Quick!")
+            server.sendmail(sender, recipient[0:2], content)
+            if settings.get('send_mobile'):
+                server.sendmail(sender, recipient[1:], "\r\nNew appt on " + avail_apt.strftime('%m/%d/%y at %I:%M%p') + "! Quick!")
         # else:
         #     server.sendmail(sender, recipient[0], content)
         #     server.sendmail(sender, recipient[1:], "\r\nNo sooner appointment. Saddies :(  Soonest appt is on " +
@@ -75,6 +97,8 @@ def notify_send_email(settings, current_apt, avail_apt, use_gmail=False):
             # with open('config.json', 'w') as outfile:
             #     json.dump({"last_available_interview_date_str": avail_apt.strftime('%m/%d/%y')}, outfile)
 
+
+
         server.quit()
     except Exception:
         logging.exception('Failed to send success e-mail.')
@@ -84,7 +108,9 @@ def notify_osx(msg):
     subprocess.getstatusoutput("osascript -e 'display notification \"%s\" with title \"Global Entry Notifier\"'" % msg)
 
 
+
 def main(settings):
+
     try:
         # Run the phantom JS script - output will be formatted like 'July 20, 2015'
         # script_output = check_output(['phantomjs', '%s/ge-cancellation-checker.phantom.js' % pwd]).strip()
@@ -105,9 +131,10 @@ def main(settings):
         logging.critical("Something went wrong when trying to run ge-cancellation-checker.phantom.js. Is phantomjs is installed?")
         return
 
-    current_apt = datetime.strptime(settings['current_interview_date_str'], '%m/%d/%y %I:%M %p')
+    current_apt = datetime.strptime(settings['interview_date_cutoff_str'], '%m/%d/%y %I:%M %p')
 
     if new_apt > current_apt:
+        return
         logging.info('No new appointments. Next available on %s (current is on %s)' % (new_apt, current_apt))
         if not settings.get('no_email'):
             notify_send_email(settings, current_apt, new_apt, use_gmail=settings.get('use_gmail'))
@@ -122,11 +149,13 @@ def main(settings):
             notify_osx(msg)
         if not settings.get('no_email'):
             notify_send_email(settings, current_apt, new_apt, use_gmail=settings.get('use_gmail'))
+            # go_to_goes.login_to_goes()
+
 
 
 def _check_settings(config):
     required_settings = (
-        'current_interview_date_str',
+        'interview_date_cutoff_str',
         'init_url',
         'enrollment_location_id',
         'username',

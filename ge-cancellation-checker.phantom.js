@@ -169,6 +169,13 @@ var steps = [
                 }
             } catch(e) { }
 
+            // If there are no more appointments available at all, there will be a message saying so.
+            if (document.querySelector('.date table tr:first-child td:first-child') == null) {
+                window.callPhantom('report-no-interviews');
+                console.log('Appointment selector crapped out... LAX only?');
+                return;
+            }
+
             // We made it! Now we have to scrape the page for the earliest available date
             var date = document.querySelector('.date table tr:first-child td:first-child').innerHTML;
             var month_year = document.querySelector('.date table tr:last-child td:last-child div').innerHTML;
